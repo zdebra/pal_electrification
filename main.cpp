@@ -9,6 +9,7 @@ int total_edges_count, nodes_count, separator, prescribed_cross_river_count, non
 Edge *edges;
 Edge *crossriver_edges;
 int *nodes;
+int global_comp;
 
 bool is_same_bank(int a, int b) {
     return (a<=separator && b<=separator) || (a>separator && b>separator);
@@ -66,6 +67,62 @@ int binomial_coef(int n, int k) {
     return C[n][k];
 }
 
+void clear_nodes() {
+    for(int i=0; i< nodes_count; i++) {
+        nodes[i] = 0;
+    }
+}
+
+/**
+ *
+ * @return -1 if there is no solution
+ */
+int find_lowest_price(int start_cost) {
+    int cur = start_cost;
+    int edges_added = prescribed_cross_river_count;
+    for(int i=0;i<non_river_edges_count;i++) {
+
+        Edge e = edges[i];
+        int n1 = nodes[e.node1];
+        int n2 = nodes[e.node2];
+
+        if(n1 == 0 && n2 == 0) {
+            nodes[e.node1] = global_comp;
+            nodes[e.node2] = global_comp;
+            global_comp++;
+            cur += e.cost;
+            edges_added++;
+        }
+        else if(n1 == 0) {
+            nodes[e.node1] = nodes[e.node2];
+            cur += e.cost;
+            edges_added++;
+        }
+        else if(n2 == 0) {
+            nodes[e.node2] = nodes[e.node1];
+            cur += e.cost;
+            edges_added++;
+        }
+        else if(n1 != n2) {
+            for(int j=0; j < nodes_count; j++) {
+                if(nodes[j]==n2) {
+                    nodes[j] = n1;
+                }
+            }
+            cur += e.cost;
+            edges_added++;
+        }
+
+
+    }
+
+    // check if it is valid solution - edges added must be n-1 where n is nodes count
+    if(edges_added != nodes_count-1) {
+        return -1;
+    }
+
+    return cur;
+}
 
 int main() {
 
@@ -108,21 +165,39 @@ int main() {
     sort_by_cost(edges, non_river_edges_count);
 
 
-    // build every combination of edges cross river
+    // cur coords
     int *coords = new int[prescribed_cross_river_count];
+    // init cur coords
     for(int i = 0; i<prescribed_cross_river_count; i++) {
         coords[i] = i+1;
     }
 
+    // build every combination of edges cross river
+    int iter = binomial_coef(river_edges_count, prescribed_cross_river_count);
+    int cur_min = -1;
+    do {
 
-    for(int i = binomial_coef(river_edges_count, prescribed_cross_river_count); i>1; i--) {
+        // clear nodes
+        clear_nodes();
 
+        // add starting nodes
+        int start_cost = 0;
+        for(int i=0; i<prescribed_cross_river_count; i++) {
+            nodes[crossriver_edges[coords[i]-1].node1] = 1;
+            nodes[crossriver_edges[coords[i]-1].node2] = 1;
+            start_cost += crossriver_edges[coords[i]-1].cost;
+        }
+        global_comp = 2;
+
+        // run kruskal algorithm for current nodes
+        cur_min = min(cur_min, find_lowest_price(start_cost));
+
+        // compare it with current minimum
         k_subset_successor(coords,river_edges_count,prescribed_cross_river_count);
+        iter--;
+    } while(iter > 0);
 
-
-    }
-
-
+    std::cout << cur_min;
 
 
     delete edges;
