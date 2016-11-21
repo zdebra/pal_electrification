@@ -73,6 +73,34 @@ void clear_nodes() {
     }
 }
 
+void connect(Edge e) {
+
+    if(nodes[e.node1] == 0 && nodes[e.node2] == 0) {
+        nodes[e.node1] = global_comp;
+        nodes[e.node2] = global_comp;
+        global_comp++;
+    }
+    else if(nodes[e.node1] == 0) {
+        nodes[e.node1] = nodes[e.node2];
+    }
+    else if(nodes[e.node2] == 0) {
+        nodes[e.node2] = nodes[e.node1];
+    }
+    else if(nodes[e.node1] != nodes[e.node2]) {
+        int c = nodes[e.node2];
+        for(int i=0; i < nodes_count; i++) {
+            if(nodes[i]==c) {
+                nodes[i] = nodes[e.node1];
+            }
+        }
+    }
+
+    std::cout << e.node1 << ": " << nodes[e.node1] << ", " << e.node2 << ": " << nodes[e.node2] << std::endl;
+
+
+}
+
+
 /**
  *
  * @return -1 if there is no solution
@@ -83,46 +111,30 @@ int find_lowest_price(int start_cost) {
     for(int i=0;i<non_river_edges_count;i++) {
 
         Edge e = edges[i];
-        int n1 = nodes[e.node1];
-        int n2 = nodes[e.node2];
 
-        if(n1 == 0 && n2 == 0) {
-            nodes[e.node1] = global_comp;
-            nodes[e.node2] = global_comp;
-            global_comp++;
+        std::cout << "test: " << e.node1 << "-" << e.node2 << std::endl <<  "(" << nodes[e.node1] << "," << nodes[e.node2] << ")" << std::endl;
+        if(nodes[e.node1] != nodes[e.node2] || (nodes[e.node1] == 0 && nodes[e.node2] == 0)) {
+            connect(edges[i]);
             cur += e.cost;
             edges_added++;
-        }
-        else if(n1 == 0) {
-            nodes[e.node1] = nodes[e.node2];
-            cur += e.cost;
-            edges_added++;
-        }
-        else if(n2 == 0) {
-            nodes[e.node2] = nodes[e.node1];
-            cur += e.cost;
-            edges_added++;
-        }
-        else if(n1 != n2) {
-            for(int j=0; j < nodes_count; j++) {
-                if(nodes[j]==n2) {
-                    nodes[j] = n1;
-                }
-            }
-            cur += e.cost;
-            edges_added++;
+            std::cout << "added! (" << nodes[e.node1] << "," << nodes[e.node2] << ") p:" << cur << std::endl;
+        } else {
+            std::cout << "not added" << std::endl;
         }
 
 
     }
 
     // check if it is valid solution - edges added must be n-1 where n is nodes count
+    std::cout << "final price: " << cur << std::endl << std::endl;
     if(edges_added != nodes_count-1) {
         return -1;
     }
 
     return cur;
 }
+
+
 
 int main() {
 
@@ -182,15 +194,22 @@ int main() {
 
         // add starting nodes
         int start_cost = 0;
+        global_comp = 1;
+
         for(int i=0; i<prescribed_cross_river_count; i++) {
-            nodes[crossriver_edges[coords[i]-1].node1] = 1;
-            nodes[crossriver_edges[coords[i]-1].node2] = 1;
+            connect(crossriver_edges[coords[i]-1]);
             start_cost += crossriver_edges[coords[i]-1].cost;
         }
-        global_comp = 2;
+
+
+        std::cout << std::endl;
 
         // run kruskal algorithm for current nodes
-        cur_min = min(cur_min, find_lowest_price(start_cost));
+        if(cur_min == -1) {
+            cur_min = find_lowest_price(start_cost);
+        } else {
+            cur_min = min(cur_min, find_lowest_price(start_cost));
+        }
 
         // compare it with current minimum
         k_subset_successor(coords,river_edges_count,prescribed_cross_river_count);
@@ -204,9 +223,6 @@ int main() {
     delete crossriver_edges;
     delete nodes;
     delete [] coords;
-
-
-
 
     return 0;
 }
